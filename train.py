@@ -1,0 +1,262 @@
+#   -*- coding: utf-8 -*-
+#
+#   train.py
+#   
+#   Developed by Tianyi Liu on 2020-05-26 as tianyi
+#   Copyright (c) 2020. All Rights Reserved.
+
+"""
+
+"""
+
+
+import time
+import argparse
+import torch
+from torch.utils.data import DataLoader
+
+
+from cfg import *
+from analyze import run_dr, plot_embedding, run_optics
+from utils import load_data, SingleCellDataset, normalize_data
+from model import SAE
+from eval import SAELoss, cal_ari, cast_tensor
+
+
+LABEL_AVAL = True
+
+
+def parse_args():
+    """
+    Argparser
+    :return: argparser
+    """
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--read_cache",
+                       dest="read_cache",
+                       help="Read data from cache.")
+    group.add_argument("--read_raw",
+                       dest="read_raw",
+                       help="Read data from raw data.")
+    parser.add_argument("--batch_correction",
+                        dest="batch_correction",
+                        type=str,
+                        default="none",
+                        choices=["inner", "outer"],
+                        help="Batch correction; outer: keep the union of all genes; inner: keep same genes.")
+    parser.add_argument("--row_header",
+                        dest="row_header",
+                        type=int,
+                        default=1,
+                        help="# rows in header.")
+    parser.add_argument("--col_header",
+                        dest="col_header",
+                        type=int,
+                        default=1,
+                        help="# column in header.")
+    parser.add_argument("-t",
+                        dest="transpose",
+                        action="store_false",
+                        help="Transpose data to shape (# cells, # genes); Default = TRUE.")
+    parser.add_argument("--sep",
+                        dest="sep",
+                        default="\t",
+                        help="Separator in data file.")
+    parser.add_argument("--cuda",
+                        dest="cuda",
+                        action="store_false",
+                        help="GPU Support; Default = TRUE.")
+    parser.add_argument("--lr",
+                        dest="lr",
+                        type=float,
+                        default=1e-2,
+                        help="Initial learning rate.")
+    parser.add_argument("--batch_size",
+                        dest="batch_size",
+                        type=int,
+                        default=128,
+                        help="Batch size.")
+    parser.add_argument("--epoch",
+                        dest="epoch",
+                        type=int,
+                        default=100,
+                        help="Training epoch.")
+    parser.add_argument("--label",
+                        dest="label",
+                        help="Read label")
+    parser.add_argument("--noise",
+                        dest="noise",
+                        default="n",
+                        choices=["n", "d", "g", "dg"],
+                        help="Noise simulation; n: none; d: dropout; g: gaussian.")
+    parser.add_argument("--dropout",
+                        dest="dropout",
+                        type=float,
+                        default=0,
+                        help="Dropout probability.")
+    parser.add_argument("--gaussian",
+                        dest="gaussian",
+                        type=float,
+                        default=0,
+                        help="Gaussian sigma.")
+    parser.add_argument("--mean_filter",
+                        dest="mean_filter",
+                        type=float,
+                        default=0,
+                        help="Filter low-expressed genes by mean expression level.")
+    parser.add_argument("--sd_filter",
+                        dest="sd_filter",
+                        type=float,
+                        default=1,
+                        help="Filter low-variant genes by standard deviation.")
+    parser.add_argument("--pca",
+                        dest="pca",
+                        type=int,
+                        default=-1,
+                        help="Initial PCA DR: -1 -> None; 0 -> PCA_DIM in cfgs.py; +ve int -> CLI.")
+    parser.add_argument("--dr_label",
+                        dest="dr_label",
+                        action="store_false",
+                        help="Set -> DO NOT run DR for label (if available); Default = TRUE.")
+    args = parser.parse_args()
+
+    print('\n', " Call with Arguments ".center(50, "="), sep='')
+    for item in args.__dict__:
+        print("{:18}".format(item), "->\t", args.__dict__[item])
+    return args
+
+
+def visualize_results(loader, model, epoch, args):
+    """
+    Visualize intermediate results
+    :param loader: dataloader
+    :param model: nn model
+    :param epoch: current epoch
+    :param args: argparser
+    :return: loss
+    """
+    model.eval()
+    # Iterate through all data
+    datas, nn_embedding, labels, loss = [], [], [], 0
+    with torch.no_grad():
+        for step, data_batch in enumerate(loader):
+            if LABEL_AVAL:
+                (data, label) = data_batch
+                labels.extend(label.detach().cpu().numpy())
+            else:
+                (data) = data_batch
+                labels = None
+            y, mu, h1, y1 = model(data)
+            datas.extend(data.detach().cpu().numpy())
+            nn_embedding.extend(mu.detach().cpu().numpy())
+            loss_w, loss_pca = compute_loss(data, y, mu, h1, y1)
+            loss += (loss_w * LOSS_W_WG + loss_pca * LOSS_PCA_WG) * len(data)
+        # Average loss among all data
+        loss /= len(datas)
+        # Run T-SNE embedding
+        if (epoch + 1) == VISUL_EPOCH and args.dr_label:
+            embedding = run_dr(datas, "TSNE", args=args)
+            plot_embedding(embedding, label=labels) if LABEL_AVAL else plot_embedding(embedding)
+
+        cluster_embedding(nn_embedding, labels, epoch, dr_type="TSNE")
+
+
+def cluster_embedding(nn_embedding, labels=None, epoch=None, dr_type="TSNE"):
+    """
+    Clustering with nn embedding
+    :param nn_embedding: nn embedding
+    :param labels: labels, if available
+    :param epoch:
+    :param dr_type:
+    :return:
+    """
+    embedding = run_dr(nn_embedding, "TSNE", epoch=epoch)
+    pred = run_optics(embedding)
+
+    # If label provided,
+    if labels is None:
+        plot_embedding(embedding, label=labels, epoch=epoch, dr_type="TSNE")
+    else:
+        print("    ARI: {}".format(cal_ari(pred, labels)))
+
+    plot_embedding(embedding, pred, labels, epoch=epoch, dr_type=dr_type)
+
+
+if __name__ == "__main__":
+    tic = time.time()
+
+    torch.manual_seed(TORCH_RAND_SEED)
+
+    args = parse_args()
+
+    device = "cuda" if args.cuda else "cpu"
+
+    print('\n', " Loading Data ".center(50, "="), sep='')
+    adata = load_data(args)
+    adata = normalize_data(adata)
+    filtered_dataset = SingleCellDataset(adata)
+
+    # Initial PCA
+    if args.pca > 0:
+        filtered_dataset.data = run_dr(filtered_dataset.data, "PCA", dim=args.pca)
+        print("    Data shape: {}".format(filtered_dataset.data.shape))
+    elif args.pca == 0:
+        filtered_dataset.data = run_dr(filtered_dataset.data, "PCA", dim=PCA_DIM)
+        print("    Data shape: {}".format(filtered_dataset.data.shape))
+    elif args.pca < 0 and args.pca != -1:
+        raise ValueError("!!! Invalid PCA DR parameter provided.")
+    filtered_dataset.update_pars()
+    filtered_dataset.data = torch.tensor(filtered_dataset.data, device=device).float()
+    if filtered_dataset.label_avail:
+        filtered_dataset.label = torch.tensor(filtered_dataset.label, device=device).long()
+    loader = DataLoader(filtered_dataset, batch_size=args.batch_size, shuffle=False)
+    toc_1 = time.time()
+
+    print('\n', " Training Model ".center(50, "="), sep='')
+    model = SAE([filtered_dataset.dim, 512, 128, 64], device).to(device)
+    model.train_sub_ae(loader, args.lr, args.epoch)
+    model.stack()
+    print(model)
+    print(">>> Fine-tuning stacked auto-encoder")
+    criterion = SAELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
+    SAE.fit(model, loader, optimizer, criterion, args.epoch)
+    toc_2 = time.time()
+
+    sae_embedding = SAE.get_embedding(model, loader)
+    tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
+    plot_embedding(tsne_embedding, label=filtered_dataset.label_raw, dr_type="TSNE")
+    toc_3 = time.time()
+
+    print("Elapsed Time: {:.2f} s; Pre-proc: {:.2f} s; Training: {:.2f} s; Post-proc: {:.2f} s".format(toc_3 - tic,
+                                                                                                       toc_1 - tic,
+                                                                                                       toc_2 - toc_1,
+                                                                                                       toc_3 - toc_2))
+    # enc_4_params = list(map(id, model.enc_4.parameters()))
+    # enc_5_params = list(map(id, model.enc_5.parameters()))
+    # enc_6_params = list(map(id, model.enc_6.parameters()))
+    # dec_6_params = list(map(id, model.dec_6.parameters()))
+    # dec_5_params = list(map(id, model.dec_5.parameters()))
+    # dec_4_params = list(map(id, model.dec_4.parameters()))
+    # base_params = filter(lambda p: id(p) not in enc_4_params + enc_5_params + enc_6_params + dec_6_params + dec_5_params + dec_4_params,
+    #                      model.parameters())
+    # optimizer = torch.optim.Adam([
+    #     {'params': base_params},
+    #     {'params': model.enc_4.parameters(), 'lr': args.lr / 5},
+    #     {'params': model.enc_5.parameters(), 'lr': args.lr / 5},
+    #     {'params': model.enc_6.parameters(), 'lr': args.lr / 5},
+    #     {'params': model.dec_6.parameters(), 'lr': args.lr / 5},
+    #     {'params': model.dec_5.parameters(), 'lr': args.lr / 5},
+    #     {'params': model.dec_4.parameters(), 'lr': args.lr / 5}, ],
+    #     lr=args.lr)
+
+
+    # Plot training curve
+    # plt.plot(range(len(losses)), losses)
+    # plt.title("Training Loss")
+    # plt.savefig(os.path.join(VISUL_DIR, "training_loss.pdf"), dpi=400)
+    # plt.clf()
+
+
+
