@@ -90,6 +90,17 @@ def barcode_label_preproc(directory, sep='\t', transpose=True):
     label_str_to_int(directory, label_df, label_np, "")
 
 
+def extract_region(data, label, region, filename, region_col, cell_col):
+     if region is None or len(region) == 0:
+         region = pd.unique(label.loc[:,region_col])
+     for step, reg in enumerate(region):
+         print(">>> Extracting {} {}/{}".format(reg, step + 1, len(reg)))
+         lb = label[label[region_col] == reg]
+         df = data[lb.index]
+         df.columns = lb[cell_col] + "_" + lb.index
+         df.to_csv("./{}_{}.tsv".format(filename, reg), sep="\t")
+
+
 if __name__ == "__main__":
     """
     DIRECTORY = "./placeholder"
