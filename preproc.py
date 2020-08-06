@@ -90,9 +90,17 @@ def barcode_label_preproc(directory, sep='\t', transpose=True):
     label_str_to_int(directory, label_df, label_np, "")
 
 
-def extract_region(data, label, region, filename, region_col, cell_col):
-    if region is None or len(region) == 0:
+def extract_region(data, label, region, filename, region_col, cell_col, region_merge=None):
+    if region_merge is not None:
+        for key in region_merge:
+            source = region_merge[key]
+            target = key
+            print("Merge {} into {}".format(source, target))
+            data[region_col] = data[region_col].replace(source, target)
+        region = list(region_merge.keys())
+    elif region is None or len(region) == 0:
         region = pd.unique(label[region_col])
+
     print("Regions: {}".format(region))
     print("    Data shape: {}".format(data.shape))
     for step, reg in enumerate(region):
