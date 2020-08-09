@@ -133,7 +133,7 @@ def plot_embedding(embedding, assignment=None, label=None, batch_correction=None
         plt.subplot(121)
         _2d_plot(embedding, label, "Labels", anno)
         plt.subplot(122)
-        _2d_plot(embedding, batch_correction=, "Batch Correction", True)
+        _2d_plot(embedding, batch_correction, "Batch Correction", True)
         plt.tight_layout()
         plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_bc_label{}.pdf".format(ext.replace(" ", "_").lower()), dpi=400)
     
