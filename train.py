@@ -194,7 +194,7 @@ if __name__ == "__main__":
 
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
-    adata = adata if arg.batch_correction != "none" else normalize_data(adata)
+    adata = adata if args.batch_correction != "none" else normalize_data(adata)
     filtered_dataset = SingleCellDataset(adata)
 
     # Initial PCA
