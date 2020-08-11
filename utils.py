@@ -11,7 +11,6 @@
 
 
 import os
-import desc
 import anndata
 from torch.utils.data import Dataset
 import numpy as np
@@ -88,7 +87,7 @@ def load_data(args):
             print(">>> Concatenating data")
             adata = anndata.AnnData.concatenate(*batches, join=args.batch_correction, fill_value=0)
             print(">>> Post-concatenation processing")
-            adata = desc.scale_bygroup(adata, groupby="batch")
+            adata = scale_bygroup(adata, groupby="batch")
             if args.batch_correction == "outer":
                 adata.var['gene_symbols'] = adata.var_names
             adata.obs['label'] = label_str_to_int(None, None, adata.obs['label_raw'], LABEL_COL, False)
