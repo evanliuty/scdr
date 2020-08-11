@@ -108,7 +108,7 @@ def plot_embedding(embedding, assignment=None, label=None, batch_correction=None
         print("!!! 2D embedding expected for visualization while {}D provided".format(embedding.shape[1]))
 
     check_directory(VISUL_DIR)
-    ext = None if epoch is None else " Epoch " + str(epoch + 1)
+    ext = "" if epoch is None else " Epoch " + str(epoch + 1)
 
     # simple plot
     if assignment is None and label is None:
@@ -125,7 +125,7 @@ def plot_embedding(embedding, assignment=None, label=None, batch_correction=None
     # plot labels
     elif assignment is None and label is not None and batch_correction is None:
         _2d_plot(embedding, label, "Labels", anno)
-        plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_label{}.pdf".format(ext.replace(" ", "_").lower()), dpi=400)
+        plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_label{}.pdf".format(ext.replace(" ", "_").lower())), dpi=400)
     
     # plot labels with batch correction
     elif assignment is None and label is not None and batch_correction is not None:
@@ -133,15 +133,15 @@ def plot_embedding(embedding, assignment=None, label=None, batch_correction=None
         plt.subplot(121)
         _2d_plot(embedding, label, "Labels", anno)
         plt.subplot(122)
-        _2d_plot(embedding, batch_correction, "Batch Correction", True)
+        _2d_plot(embedding, batch_correction, "Batch Correction", False)
         plt.tight_layout()
-        plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_bc_label{}.pdf".format(ext.replace(" ", "_").lower()), dpi=400)
+        plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_bc_label{}.pdf".format(ext.replace(" ", "_").lower())), dpi=400)
     
     # plot clustering results with labels
     elif assignment is not None and label is not None and batch_correction is None:
         plt.figure(figsize=(15, 8))
         plt.subplot(121)
-        _2d_plot(embedding, assignment, "Cluster Assignment{}".format(ext), True)
+        _2d_plot(embedding, assignment, "Cluster Assignment{}".format(ext), anno)
         plt.subplot(122)
         _2d_plot(embedding, label, "Labels", anno)
         plt.tight_layout()
@@ -151,11 +151,11 @@ def plot_embedding(embedding, assignment=None, label=None, batch_correction=None
     elif assignment is not None and label is not None and batch_correction is not None:
         plt.figure(figsize=(21, 8))
         plt.subplot(131)
-        _2d_plot(embedding, assignment, "Cluster Assignment{}".format(ext), True)
+        _2d_plot(embedding, assignment, "Cluster Assignment{}".format(ext), anno)
         plt.subplot(132)
-        _2d_plot(embedding, batch_correction, "Batch Correction{}".format(ext), anno)
+        _2d_plot(embedding, batch_correction, "Batch Correction{}".format(ext), False)
         plt.subplot(133)
-        _2d_plot(embedding, label, "Labels", True)
+        _2d_plot(embedding, label, "Labels", anno)
         plt.tight_layout()
         plt.savefig(os.path.join(VISUL_DIR, dr_type.lower() + "_cls_bc_label{}.pdf".format(ext.replace(" ", "_").lower())), dpi=400)
 
