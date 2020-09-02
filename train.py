@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     sae_embedding = SAE.get_embedding(model, clean_loader)
     tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
-    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
+    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, batch_correction=clean_dataset.batch_raw, dr_type="TSNE")
 
     toc_3 = time.time()
 
