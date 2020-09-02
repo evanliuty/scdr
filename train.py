@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 
 from cfg import *
 from analyze import run_dr, plot_embedding, run_optics
-from utils import load_data, SingleCellDataset, normalize_data
+from utils import load_data, SingleCellDataset, normalize_data, add_noise
 from model import SAE
 from eval import SAELoss, cal_ari, cast_tensor
 
@@ -195,68 +195,55 @@ if __name__ == "__main__":
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
     adata = adata if args.batch_correction != "none" else normalize_data(adata)
-    filtered_dataset = SingleCellDataset(adata)
+    clean_dataset = SingleCellDataset(adata)
+    noisy_dataset = SingleCellDataset(add_noise(adata, args))
 
+    """
     # Initial PCA
     if args.pca > 0:
-        filtered_dataset.data = run_dr(filtered_dataset.data, "PCA", dim=args.pca)
-        print("    Data shape: {}".format(filtered_dataset.data.shape))
+        noisy_dataset.data = run_dr(noisy_dataset.data, "PCA", dim=args.pca)
+        print("    Data shape: {}".format(noisy_dataset.data.shape))
     elif args.pca == 0:
-        filtered_dataset.data = run_dr(filtered_dataset.data, "PCA", dim=PCA_DIM)
-        print("    Data shape: {}".format(filtered_dataset.data.shape))
+        noisy_dataset.data = run_dr(noisy_dataset.data, "PCA", dim=PCA_DIM)
+        print("    Data shape: {}".format(noisy_dataset.data.shape))
     elif args.pca < 0 and args.pca != -1:
         raise ValueError("!!! Invalid PCA DR parameter provided.")
-    filtered_dataset.update_pars()
-    filtered_dataset.data = torch.tensor(filtered_dataset.data, device=device).float()
-    if filtered_dataset.label_avail:
-        filtered_dataset.label = torch.tensor(filtered_dataset.label, device=device).long()
-    loader = DataLoader(filtered_dataset, batch_size=args.batch_size, shuffle=False)
+    """
+
+    noisy_dataset.update_pars()
+    noisy_dataset.data = torch.tensor(noisy_dataset.data, device=device).float()
+    if noisy_dataset.label_avail:
+        noisy_dataset.label = torch.tensor(noisy_dataset.label, device=device).long()
+    noisy_loader = DataLoader(noisy_dataset, batch_size=args.batch_size, shuffle=False)
+
+    clean_dataset.update_pars()
+    clean_dataset.data = torch.tensor(clean_dataset.data, device=device).float()
+    if clean_dataset.label_avail:
+        clean_dataset.label = torch.tensor(clean_dataset.label, device=device).long()
+    clean_loader = DataLoader(clean_dataset, batch_size=args.batch_size, shuffle=False)
+
     toc_1 = time.time()
 
     print('\n', " Training Model ".center(50, "="), sep='')
-    model = SAE([filtered_dataset.dim, 512, 128, 64], device).to(device)
-    model.train_sub_ae(loader, args.lr, args.epoch)
+    model = SAE([noisy_dataset.dim, 512, 128, 64], device).to(device)
+    model.train_sub_ae(noisy_loader, args.lr, args.epoch)
     model.stack()
     print(model)
     print(">>> Fine-tuning stacked auto-encoder")
     criterion = SAELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
-    SAE.fit(model, loader, optimizer, criterion, args.epoch)
+    SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
     toc_2 = time.time()
 
-    sae_embedding = SAE.get_embedding(model, loader)
+    sae_embedding = SAE.get_embedding(model, clean_loader)
     tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
-    plot_embedding(tsne_embedding, label=filtered_dataset.label_raw, dr_type="TSNE")
+    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
     toc_3 = time.time()
 
     print("Elapsed Time: {:.2f} s; Pre-proc: {:.2f} s; Training: {:.2f} s; Post-proc: {:.2f} s".format(toc_3 - tic,
                                                                                                        toc_1 - tic,
                                                                                                        toc_2 - toc_1,
                                                                                                        toc_3 - toc_2))
-    # enc_4_params = list(map(id, model.enc_4.parameters()))
-    # enc_5_params = list(map(id, model.enc_5.parameters()))
-    # enc_6_params = list(map(id, model.enc_6.parameters()))
-    # dec_6_params = list(map(id, model.dec_6.parameters()))
-    # dec_5_params = list(map(id, model.dec_5.parameters()))
-    # dec_4_params = list(map(id, model.dec_4.parameters()))
-    # base_params = filter(lambda p: id(p) not in enc_4_params + enc_5_params + enc_6_params + dec_6_params + dec_5_params + dec_4_params,
-    #                      model.parameters())
-    # optimizer = torch.optim.Adam([
-    #     {'params': base_params},
-    #     {'params': model.enc_4.parameters(), 'lr': args.lr / 5},
-    #     {'params': model.enc_5.parameters(), 'lr': args.lr / 5},
-    #     {'params': model.enc_6.parameters(), 'lr': args.lr / 5},
-    #     {'params': model.dec_6.parameters(), 'lr': args.lr / 5},
-    #     {'params': model.dec_5.parameters(), 'lr': args.lr / 5},
-    #     {'params': model.dec_4.parameters(), 'lr': args.lr / 5}, ],
-    #     lr=args.lr)
-
-
-    # Plot training curve
-    # plt.plot(range(len(losses)), losses)
-    # plt.title("Training Loss")
-    # plt.savefig(os.path.join(VISUL_DIR, "training_loss.pdf"), dpi=400)
-    # plt.clf()
 
 
 

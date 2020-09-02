@@ -236,7 +236,7 @@ class SingleCellDataset(Dataset):
         self.dim = self.data.shape[1]
 
 
-def add_noise(dataset, args):
+def add_noise(adata, args):
     """
     Simulating dropout & gaussian noise
     :param dataset:       original data
@@ -261,18 +261,18 @@ def add_noise(dataset, args):
     np.random.seed(NUMPY_RAND_SEED)
 
     if args.noise == "d":
-        dataset.data = _add_dropout(dataset.data, args.dropout)
+        adata.X = _add_dropout(adata.X, args.dropout)
     elif args.noise == "g":
-        dataset.data = _add_gaussian(dataset.data, args.gaussian)
+        adata.X = _add_gaussian(adata.X, args.gaussian)
     elif args.noise == "dg":
-        dataset.data = _add_dropout(dataset.data, args.dropout)
-        dataset.data = _add_gaussian(dataset.data, args.gaussian)
+        adata.X = _add_dropout(adata.X, args.dropout)
+        adata.X = _add_gaussian(adata.X, args.gaussian)
     elif args.noise == 'n':
         pass
     else:
         raise NotImplementedError("!!! Invalid noise options")
-    print("    Sparsity: {:.2f} %".format(100 * (1 - np.count_nonzero(dataset.data) / dataset.data.size)))
-    return dataset
+    print("    Sparsity: {:.2f} %".format(100 * (1 - np.count_nonzero(adata.X) / adata.X.size)))
+    return adata
 
 
 def normalize_data(adata, threshold=6.0):
