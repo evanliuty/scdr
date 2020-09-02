@@ -187,9 +187,7 @@ class _AESC(nn.Module):
         self.enc_4 = _fc_act(self.dim[3], self.dim[4])
         self.enc_5 = _fc_act(self.dim[4], self.dim[5])
         self.enc_6 = _fc(self.dim[5], self.dim[6])
-        # self.enc_7 = _fc(self.dim[6], self.dim[7])
 
-        # self.dec_7 = _fc_act(self.dim[7], self.dim[6])
         self.dec_6 = _fc_act(self.dim[6], self.dim[5])
         self.dec_5 = _fc_act(self.dim[5], self.dim[4])
         self.dec_4 = _fc_act(self.dim[4], self.dim[3])
@@ -204,9 +202,7 @@ class _AESC(nn.Module):
         h4 = self.enc_4(h3)
         h5 = self.enc_5(h4)
         h6 = self.enc_6(h5)
-        # h7 = self.enc_7(h6)
 
-        # y6 = self.dec_7(h7)
         y5 = self.dec_6(h6)
         y4 = self.dec_5(y5)
         y3 = self.dec_4(y4)
