@@ -12,7 +12,8 @@
 
 import os
 import anndata
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import pandas as pd
 import pickle as pkl
@@ -234,6 +235,15 @@ class SingleCellDataset(Dataset):
 
     def update_pars(self):
         self.dim = self.data.shape[1]
+
+
+def cast_dataset_loader(dataset, device, batch_size):
+    dataset.update_pars()
+    dataset.data = torch.tensor(dataset.data, device=device).float()
+    if dataset.label_avail:
+        dataset.label = torch.tensor(dataset.label, device=device).long()
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    return loader
 
 
 def add_noise(adata, args):

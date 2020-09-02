@@ -13,12 +13,11 @@
 import time
 import argparse
 import torch
-from torch.utils.data import DataLoader
 
 
 from cfg import *
 from analyze import run_dr, plot_embedding, run_optics
-from utils import load_data, SingleCellDataset, normalize_data, add_noise
+from utils import load_data, SingleCellDataset, normalize_data, add_noise, cast_dataset_loader
 from model import SAE
 from eval import SAELoss, cal_ari, cast_tensor
 
@@ -210,17 +209,8 @@ if __name__ == "__main__":
         raise ValueError("!!! Invalid PCA DR parameter provided.")
     """
 
-    noisy_dataset.update_pars()
-    noisy_dataset.data = torch.tensor(noisy_dataset.data, device=device).float()
-    if noisy_dataset.label_avail:
-        noisy_dataset.label = torch.tensor(noisy_dataset.label, device=device).long()
-    noisy_loader = DataLoader(noisy_dataset, batch_size=args.batch_size, shuffle=False)
-
-    clean_dataset.update_pars()
-    clean_dataset.data = torch.tensor(clean_dataset.data, device=device).float()
-    if clean_dataset.label_avail:
-        clean_dataset.label = torch.tensor(clean_dataset.label, device=device).long()
-    clean_loader = DataLoader(clean_dataset, batch_size=args.batch_size, shuffle=False)
+    noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
+    clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
 
     toc_1 = time.time()
 
@@ -233,11 +223,13 @@ if __name__ == "__main__":
     criterion = SAELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
     SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
+
     toc_2 = time.time()
 
     sae_embedding = SAE.get_embedding(model, clean_loader)
     tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
     plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
+
     toc_3 = time.time()
 
     print("Elapsed Time: {:.2f} s; Pre-proc: {:.2f} s; Training: {:.2f} s; Post-proc: {:.2f} s".format(toc_3 - tic,
