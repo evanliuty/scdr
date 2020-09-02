@@ -285,10 +285,10 @@ def add_noise(adata, args):
     return adata
 
 
-def normalize_data(adata, threshold=6.0):
-    print(">>> Normalizing data with threshold = {}".format(threshold))
-    adata.X = (np.array(adata.X) - np.mean(adata.X, axis=1).reshape(-1, 1)) / np.std(adata.X, axis=1).reshape(-1, 1)
-    adata.X = pd.DataFrame(np.where(adata.X > threshold, threshold, adata.X))
+def normalize_data(adata):
+    print(">>> Normalizing data")
+    adata.X = np.log2(adata.X + 1)
+    adata.X = adata.X / np.max(adata.X)
     return adata
 
 

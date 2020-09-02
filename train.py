@@ -193,9 +193,17 @@ if __name__ == "__main__":
 
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
-    adata = adata if args.batch_correction != "none" else normalize_data(adata)
+    # adata = adata if args.batch_correction != "none" else normalize_data(adata)
+
+    adata = normalize_data(adata)
     clean_dataset = SingleCellDataset(adata)
-    noisy_dataset = SingleCellDataset(add_noise(adata, args))
+    clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
+
+    adata_noisy = add_noise(adata, args)
+    adata_noisy = normalize_data(adata_noisy)
+    noisy_dataset = SingleCellDataset(adata_noisy)
+    noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
+
 
     """
     # Initial PCA
@@ -208,9 +216,6 @@ if __name__ == "__main__":
     elif args.pca < 0 and args.pca != -1:
         raise ValueError("!!! Invalid PCA DR parameter provided.")
     """
-
-    noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
-    clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
 
     toc_1 = time.time()
 
