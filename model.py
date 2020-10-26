@@ -164,7 +164,7 @@ class AE(nn.Module):
                     enc_layer += _dla(dim_list[dim], dim_list[dim + 1])
                     dec_layer += _dla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
             enc_layer += _l(dim_list[-2], dim_list[-1])
-            dec_layer += _l(dim_list[1], dim_list[0])
+            dec_layer += _la(dim_list[1], dim_list[0])
         else:
             enc_layer += _bla(dim_list[0], dim_list[1])
             dec_layer += _la(dim_list[1], dim_list[0])
