@@ -225,10 +225,10 @@ if __name__ == "__main__":
     #model.stack()
     
     model = AE([noisy_dataset.dim, 512, 128, 64]).to(device)
+    print(model)
     criterion = SAELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     AE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
-    print(model)
 
     #print(">>> Fine-tuning stacked auto-encoder")
     #criterion = SAELoss()
