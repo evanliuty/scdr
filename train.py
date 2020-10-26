@@ -18,7 +18,7 @@ import torch
 from cfg import *
 from analyze import run_dr, plot_embedding, run_optics
 from utils import load_data, SingleCellDataset, normalize_data, add_noise, cast_dataset_loader
-from model import SAE, _AE
+from model import SAE, AE
 from eval import SAELoss, cal_ari, cast_tensor
 
 
