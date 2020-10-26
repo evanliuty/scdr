@@ -200,7 +200,7 @@ if __name__ == "__main__":
     clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
 
     adata_noisy = add_noise(adata, args)
-    adata_noisy = normalize_data(adata_noisy)
+    # adata_noisy = normalize_data(adata_noisy)
     noisy_dataset = SingleCellDataset(adata_noisy)
     noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
 

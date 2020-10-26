@@ -287,7 +287,7 @@ def add_noise(adata, args):
 def normalize_data(adata):
     print(">>> Normalizing data")
     adata.X = np.log1p(adata.X)
-    adata.X = 2 * adata.X / np.max(adata.X) - 1
+    # adata.X = 2 * adata.X / np.max(adata.X) - 1
     return adata
 
 
