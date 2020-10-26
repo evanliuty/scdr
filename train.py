@@ -18,7 +18,7 @@ import torch
 from cfg import *
 from analyze import run_dr, plot_embedding, run_optics
 from utils import load_data, SingleCellDataset, normalize_data, add_noise, cast_dataset_loader
-from model import SAE
+from model import SAE, _AE
 from eval import SAELoss, cal_ari, cast_tensor
 
 
@@ -220,14 +220,20 @@ if __name__ == "__main__":
     toc_1 = time.time()
 
     print('\n', " Training Model ".center(50, "="), sep='')
-    model = SAE([noisy_dataset.dim, 512, 128, 64], device).to(device)
-    model.train_sub_ae(noisy_loader, args.lr, args.epoch)
-    model.stack()
-    print(model)
-    print(">>> Fine-tuning stacked auto-encoder")
+    #model = SAE([noisy_dataset.dim, 512, 128, 64], device).to(device)
+    #model.train_sub_ae(noisy_loader, args.lr, args.epoch)
+    #model.stack()
+    
+    model = AE([noisy_dataset.dim, 512, 128, 64]).to(device)
     criterion = SAELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
-    SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    AE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
+    print(model)
+
+    #print(">>> Fine-tuning stacked auto-encoder")
+    #criterion = SAELoss()
+    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
+    #SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
 
     toc_2 = time.time()
 
