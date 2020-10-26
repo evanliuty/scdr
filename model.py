@@ -157,8 +157,11 @@ class AE(nn.Module):
         enc_layer, dec_layer = [], []
         if len(dim_list) > 2:
             for dim in range(len(dim_list) - 2):
-                enc_layer += _bdla(dim_list[dim], dim_list[dim + 1])
-                dec_layer += _bdla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
+                if dim == 0:
+                    enc_layer += _bdla(dim_list[dim], dim_list[dim + 1])
+                    dec_layer += _bdla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
+                enc_layer += _dla(dim_list[dim], dim_list[dim + 1])
+                dec_layer += _dla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
             enc_layer += _l(dim_list[-2], dim_list[-1])
             dec_layer += _l(dim_list[1], dim_list[0])
         else:
