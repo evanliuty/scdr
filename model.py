@@ -126,10 +126,11 @@ class SAE(nn.Module):
 
 
 class AE(nn.Module):
-    def __init__(self, dim_list, activation="Tanh"):
+    def __init__(self, dim_list, device="cuda", activation="Tanh"):
         super(AE, self).__init__()
         self.dim_list = dim_list
         self.activation = activation
+        self.device = device
 
         def _bla(fc_dim1, fc_dim2, act=self.activation):
             return _b(fc_dim1) + _la(fc_dim1, fc_dim2, act)
