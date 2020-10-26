@@ -88,7 +88,6 @@ def load_data(args):
             print(">>> Concatenating data")
             adata = anndata.AnnData.concatenate(*batches, join=args.batch_correction, fill_value=0)
             print(">>> Post-concatenation processing")
-            adata = scale_bygroup(adata, groupby="batch")
             if args.batch_correction == "outer":
                 adata.var['gene_symbols'] = adata.var_names
             adata.obs['label'] = label_str_to_int(None, None, adata.obs['label_raw'], LABEL_COL, False)
@@ -349,40 +348,6 @@ def filter_gene(dataset, args):
         print("    Sparsity: {:.2f} %".format(100 * (1 - np.count_nonzero(dataset.data) / dataset.data.size)))
 
     return dataset
-
-
-def scale_bygroup(adata,groupby,max_value=6):
-    res=None
-    assert isinstance(adata,AnnData),'adata must be AnnData class'
-    adata.X=adata.X.toarray() if issparse(adata.X) else adata.X
-    if groupby in adata.obs.keys():
-        df=pd.Series(adata.obs[groupby],dtype="category")
-        for category in df.cat.categories:
-            tmp=adata[df==category]
-            tmp=tmp.X.copy()
-            tmp=np.asarray(tmp)
-            mean0,var0=get_mean_var(tmp)
-            sd0=np.sqrt(var0)
-            sd0[sd0<=1e-5]=1e-5
-            tmp-=mean0
-            tmp/=sd0
-            if max_value is not None:
-                tmp[tmp>max_value]=max_value
-            adata.X[df==category]=tmp.copy()
-    else:
-        print("Warning: The groupby:"+str(groupby)+ "you provided is not exists, we scale across all cells")
-        res=adata.X
-        #avoid all 0 columns
-        mean0,var0=get_mean_var(res)
-        sd0=np.sqrt(var0)
-        sd0[sd0<=1e-5]=1e-5
-        if issparse(res):
-            res=res.toarray()
-        res-=mean0
-        res/=sd0
-        res[res>max_value]=max_value
-        adata.X=res
-    return adata
 
 
 def check_directory(directory):
