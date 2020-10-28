@@ -194,13 +194,11 @@ if __name__ == "__main__":
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
     adata.X = normalize_data(adata.X)
-    adata.X = normalize_data(adata.X, method="normal")
     clean_dataset = SingleCellDataset(adata)
     clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
     
     adata_noisy = add_noise(adata, args)
     adata_noisy.X = normalize_data(adata_noisy.X)
-    adata_noisy.X = normalize_data(adata_noisy.X, method="normalp")
     noisy_dataset = SingleCellDataset(adata_noisy)
     noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
 
