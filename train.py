@@ -193,14 +193,12 @@ if __name__ == "__main__":
 
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
-    # adata = adata if args.batch_correction != "none" else normalize_data(adata)
-
-    adata = normalize_data(adata)
+    adata.X = normalize_data(adata.X, method="normal")
     clean_dataset = SingleCellDataset(adata)
     clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
-
+    
     adata_noisy = add_noise(adata, args)
-    # adata_noisy = normalize_data(adata_noisy)
+    adata_noisy.X = normalize_data(adata_noisy.X, method="normal")
     noisy_dataset = SingleCellDataset(adata_noisy)
     noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
 
@@ -220,26 +218,26 @@ if __name__ == "__main__":
     toc_1 = time.time()
 
     print('\n', " Training Model ".center(50, "="), sep='')
-    #model = SAE([noisy_dataset.dim, 512, 128, 64], device).to(device)
-    #model.train_sub_ae(noisy_loader, args.lr, args.epoch)
-    #model.stack()
+    model = SAE([noisy_dataset.dim, 512, 128, 64], device).to(device)
+    model.train_sub_ae(noisy_loader, args.lr, args.epoch)
+    model.stack()
     
-    model = AE([noisy_dataset.dim, 512, 128, 64]).to(device)
+    # model = AE([noisy_dataset.dim, 512, 128, 64]).to(device)
     print(model)
-    criterion = SAELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    AE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
+    # criterion = SAELoss()
+    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    # AE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
 
-    #print(">>> Fine-tuning stacked auto-encoder")
-    #criterion = SAELoss()
-    #optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
-    #SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
+    print(">>> Fine-tuning stacked auto-encoder")
+    criterion = SAELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
+    SAE.fit(model, clean_loader, optimizer, criterion, args.epoch)
 
     toc_2 = time.time()
 
     sae_embedding = SAE.get_embedding(model, clean_loader)
     tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
-    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, batch_correction=clean_dataset.batch_raw, dr_type="TSNE")
+    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
 
     toc_3 = time.time()
 

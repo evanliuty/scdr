@@ -15,7 +15,7 @@ NUMPY_RAND_SEED = 123
 TORCH_RAND_SEED = 123
 
 # Model
-DROPOUT_PROB = 0
+DROPOUT_PROB = 0.2
 
 # Preproc
 LOG_NORMALIZE_SCALE = 10000
@@ -31,7 +31,7 @@ LABEL_COL = "proc"
 BATCH_ID = "batch_id"
 
 # Learning rate decay
-LR_DECAY_EPOCH = 20
+LR_DECAY_EPOCH = 5
 LR_DECAY_GAMMA = 1e-1
 LR_DECAY_MIN = 1e-5
 

@@ -60,8 +60,8 @@ class SAE(nn.Module):
                         self.enc.add_module("{}_act".format(i + 1), self.activation())
                     elif isinstance(layer, nn.BatchNorm1d) and i == 0:
                         self.enc.add_module("{}_bn".format(i + 1), layer)
-                    elif isinstance(layer, nn.Dropout):
-                        self.enc.add_module("{}_d".format(i + 1), layer)
+                    # elif isinstance(layer, nn.Dropout):
+                    #    self.enc.add_module("{}_d".format(i + 1), layer)
 
             for name, layer in self.sub_aes[len(self.sub_aes) - 1 - i].named_modules():
                 if name.split('.')[0] == "dec" and isinstance(layer, nn.Linear):
@@ -135,15 +135,14 @@ class AE(nn.Module):
         def _bla(fc_dim1, fc_dim2, act=self.activation):
             return _b(fc_dim1) + _la(fc_dim1, fc_dim2, act)
 
-        def _bdla(fc_dim1, fc_dim2, drop_prob=DROPOUT_PROB, act=self.activation):
-            return _b(fc_dim1) + _d(drop_prob) + _la(fc_dim1, fc_dim2, act)
+        def _dbla(fc_dim1, fc_dim2, drop_prob=DROPOUT_PROB, act=self.activation):
+            return _d(drop_prob) + _b(fc_dim1) + _la(fc_dim1, fc_dim2, act)
 
         def _dla(fc_dim1, fc_dim2, drop_prob=DROPOUT_PROB, act=self.activation):
             return _d(drop_prob) + _la(fc_dim1, fc_dim2, act)
         
         def _la(fc_dim1, fc_dim2, act=self.activation):
-            return [nn.Linear(fc_dim1, fc_dim2),
-                    AE.act_fun(act)()]
+            return [nn.Linear(fc_dim1, fc_dim2), AE.act_fun(act)()]
         
         def _b(dim):
             return [nn.BatchNorm1d(dim)]
@@ -155,19 +154,19 @@ class AE(nn.Module):
             return [nn.Linear(fc_dim1, fc_dim2)]
 
         enc_layer, dec_layer = [], []
-        if len(dim_list) > 2:
-            for dim in range(len(dim_list) - 2):
-                if dim == 0:
-                    enc_layer += _bdla(dim_list[dim], dim_list[dim + 1])
-                    dec_layer += _bdla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
+        if len(self.dim_list) > 2:
+            for dim in range(len(self.dim_list) - 2):
+                if dim == 0 or dim == 1:
+                    enc_layer += _bla(self.dim_list[dim], self.dim_list[dim + 1])
+                    dec_layer += _bla(self.dim_list[len(self.dim_list) - dim - 1], self.dim_list[len(self.dim_list) - dim - 2])
                 else:
-                    enc_layer += _dla(dim_list[dim], dim_list[dim + 1])
-                    dec_layer += _dla(dim_list[len(dim_list) - dim - 1], dim_list[len(dim_list) - dim - 2])
-            enc_layer += _l(dim_list[-2], dim_list[-1])
-            dec_layer += _la(dim_list[1], dim_list[0])
+                    enc_layer += _la(self.dim_list[dim], self.dim_list[dim + 1])
+                    dec_layer += _la(self.dim_list[len(self.dim_list) - dim - 1], self.dim_list[len(self.dim_list) - dim - 2])
+            enc_layer += _la(self.dim_list[-2], self.dim_list[-1])
+            dec_layer += _la(self.dim_list[1], self.dim_list[0])
         else:
-            enc_layer += _bla(dim_list[0], dim_list[1])
-            dec_layer += _la(dim_list[1], dim_list[0])
+            enc_layer += _dbla(self.dim_list[0], self.dim_list[1])
+            dec_layer += _dla(self.dim_list[1], self.dim_list[0])
 
         self.enc = nn.Sequential(*enc_layer)
         self.dec = nn.Sequential(*dec_layer)
