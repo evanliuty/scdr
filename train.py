@@ -193,12 +193,14 @@ if __name__ == "__main__":
 
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
+    adata.X = normalize_data(adata.X)
     adata.X = normalize_data(adata.X, method="normal")
     clean_dataset = SingleCellDataset(adata)
     clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
     
     adata_noisy = add_noise(adata, args)
-    adata_noisy.X = normalize_data(adata_noisy.X, method="normal")
+    adata_noisy.X = normalize_data(adata_noisy.X)
+    adata_noisy.X = normalize_data(adata_noisy.X, method="normalp")
     noisy_dataset = SingleCellDataset(adata_noisy)
     noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
 
@@ -231,13 +233,17 @@ if __name__ == "__main__":
     print(">>> Fine-tuning stacked auto-encoder")
     criterion = SAELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr / 5)
-    SAE.fit(model, clean_loader, optimizer, criterion, args.epoch)
+    SAE.fit(model, noisy_loader, optimizer, criterion, args.epoch)
 
     toc_2 = time.time()
 
     sae_embedding = SAE.get_embedding(model, clean_loader)
     tsne_embedding = run_dr(cast_tensor(sae_embedding), dr_type="TSNE", cache=False)
-    plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
+    try:
+        clean_dataset.batch_raw
+        plot_embedding(tsne_embedding, label=clean_dataset.label_raw, batch_correction=clean_dataset.batch_raw, dr_type="TSNE")
+    except KeyError:
+        plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
 
     toc_3 = time.time()
 
