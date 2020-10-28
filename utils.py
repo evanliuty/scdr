@@ -88,7 +88,7 @@ def load_data(args):
             print(">>> Concatenating data")
             adata = anndata.AnnData.concatenate(*batches, join=args.batch_correction, fill_value=0)
             print(">>> Post-concatenation processing")
-            adata = scale_bygroup(adata, groupby="batch")
+            adata = normalize_batch(adata, batch="batch_raw")
             if args.batch_correction == "outer":
                 adata.var['gene_symbols'] = adata.var_names
             adata.obs['label'] = label_str_to_int(None, None, adata.obs['label_raw'], LABEL_COL, False)
@@ -285,9 +285,15 @@ def add_noise(adata, args):
     return adata
 
 
-def normalize_data(data, method="log"):
+def normalize_data(data, method="lognormal"):
     print(">>> Normalizing data")
-    if method == "log":
+    if method == "lognormal":
+        data = np.log1p(data)
+        data = data / np.max(data)
+        mean, std = np.mean(data), np.std(data)
+        data -= mean
+        data /= std
+    elif method == "log":
         data = np.log1p(data)
         data = data / np.max(data)
     elif method == "normal":
@@ -303,10 +309,10 @@ def normalize_data(data, method="log"):
 
 def normalize_batch(adata, batch, thres=6):
     if batch in adata.obs.keys():
-        df = pd.Series(adata.obs[batch_id],dtype="category")
+        df = pd.Series(adata.obs[batch],dtype="category")
         for batch_label in df.cat.categories:
             tmp = adata[df==batch_label]
-            tmp = tmp.X.copy().to_numpy()
+            tmp = tmp.X.copy()
             tmp = normalize_data(tmp, "normal")
             if max_value is not None:
                 tmp[tmp>max_value] = max_value
