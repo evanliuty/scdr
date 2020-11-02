@@ -193,12 +193,15 @@ if __name__ == "__main__":
 
     print('\n', " Loading Data ".center(50, "="), sep='')
     adata = load_data(args)
-    adata.X = normalize_data(adata.X)
+    adata_unnor = add_noise(adata, args)
+    adata = adata_unnor.copy()
+    adata.X = normalize_data(adata.X, method="log")
     clean_dataset = SingleCellDataset(adata)
     clean_loader = cast_dataset_loader(clean_dataset, device, args.batch_size)
     
-    adata_noisy = add_noise(adata, args)
-    adata_noisy.X = normalize_data(adata_noisy.X)
+    args.dropout = 0.1 if args.dropout <= 0.2 else 0.1 - args.dropout * 0.2
+    adata_noisy = add_noise(adata_unnor, args)
+    adata_noisy.X = normalize_data(adata_noisy.X, method="log")
     noisy_dataset = SingleCellDataset(adata_noisy)
     noisy_loader = cast_dataset_loader(noisy_dataset, device, args.batch_size)
 
@@ -240,7 +243,7 @@ if __name__ == "__main__":
     try:
         clean_dataset.batch_raw
         plot_embedding(tsne_embedding, label=clean_dataset.label_raw, batch_correction=clean_dataset.batch_raw, dr_type="TSNE")
-    except KeyError:
+    except AttributeError:
         plot_embedding(tsne_embedding, label=clean_dataset.label_raw, dr_type="TSNE")
 
     toc_3 = time.time()

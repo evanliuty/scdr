@@ -24,6 +24,9 @@ from cfg import *
 from preproc import label_str_to_int
 
 
+np.random.seed(NUMPY_RAND_SEED)
+
+
 def load_data(args):
     def _load_data(args):
         # Read cache
@@ -268,7 +271,6 @@ def add_noise(adata, args):
         data *= mask
         return data.astype(np.int)
 
-    np.random.seed(NUMPY_RAND_SEED)
 
     if args.noise == "d":
         adata.X = _add_dropout(adata.X, args.dropout)
@@ -435,3 +437,4 @@ class Logger():
         self.f.close()
         print("Logger {} closed; {} lines logged; file written to {}".format(
             Logger.__name__, self.log_count - 1, os.path.join(LOG_PATH, self.log_name)))
+
